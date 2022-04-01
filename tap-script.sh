@@ -12,161 +12,83 @@ read -p "Do you want to use existing EKS cluster or create a new one? Type "N" f
 read -p "Enter ACR Login server Name: " dockerhostname
 read -p "Enter ACR Login server username: " dockerusername
 read -p "Enter ACR Login server password: " dockerpassword
+echo "#################  Installing AZ cli #####################"
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 echo "#########################################"
+echo "################ AZ CLI version #####################"
+az --version
 echo "#########################################"
-echo "Installing AWS cli"
-echo "#########################################"
-echo "#########################################"
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-sudo apt install unzip
-unzip awscliv2.zip
-sudo ./aws/install
-./aws/install -i /usr/local/aws-cli -b /usr/local/bin
-echo "#########################################"
-echo "AWS CLI version"
-echo "#########################################"
-aws --version
-echo "#########################################"
-echo "############# Provide AWS access key and secrets  ##########################"
-aws configure
-read -p "Enter AWS session token: " aws_token
-aws configure set aws_session_token $aws_token
-echo "############ Install Kubectl #######################"
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+echo "############### Install kubectl ##############"
+sudo az aks install-cli
 echo "############  Kubectl Version #######################"
 kubectl version
+echo "#####################################################################################################"
+echo "#############  Authenticate to AZ cli by following the screen Instructions below #################"
+echo "#####################################################################################################"
+az login
+echo "#########################################"
 if [ "$clusterconnect" == "N" ];
 then
 	read -p "Enter the region: " region
-
-echo "################## Creating IAM Roles for EKS Cluster and nodes ###################### "
-cat <<EOF > cluster-role-trust-policy.json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "eks.amazonaws.com"
-      },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-EOF
-cat <<EOF > node-role-trust-policy.json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "ec2.amazonaws.com"
-      },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-EOF
-aws iam create-role --role-name tap-EKSClusterRole --assume-role-policy-document file://"cluster-role-trust-policy.json"
-aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterPolicy --role-name tap-EKSClusterRole
-aws iam create-role --role-name tap-EKSNodeRole --assume-role-policy-document file://"node-role-trust-policy.json"
-aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy --role-name tap-EKSNodeRole
-aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly --role-name tap-EKSNodeRole
-aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy --role-name tap-EKSNodeRole
-
-echo "########################### Creating VPC Stacks through cloud formation ##############################"
-aws cloudformation create-stack --region $region --stack-name tap-demo-vpc-stack --template-url https://amazon-eks.s3.us-west-2.amazonaws.com/cloudformation/2020-10-29/amazon-eks-vpc-private-subnets.yaml
-echo "############## Waiting for VPC stack to get created ###################"
-echo "############## Paused for 5 mins ##########################"
-sleep 5m
-pubsubnet1=$(aws ec2 describe-subnets --filters Name=tag:Name,Values=tap-demo-vpc-stack-PublicSubnet01 --query Subnets[0].SubnetId --output text)
-pubsubnet2=$(aws ec2 describe-subnets --filters Name=tag:Name,Values=tap-demo-vpc-stack-PublicSubnet02 --query Subnets[0].SubnetId --output text)
-rolearn=$(aws iam get-role --role-name tap-EKSClusterRole --query Role.Arn --output text)
-sgid=$(aws ec2 describe-security-groups --filters Name=description,Values="Cluster communication with worker nodes" --query SecurityGroups[0].GroupId --output text)
-
-echo "########################## Creating EKS Cluster ########################################"
-
-ekscreatecluster=$(aws eks create-cluster --region $region --name tap-demo-ekscluster --kubernetes-version 1.21 --role-arn $rolearn --resources-vpc-config subnetIds=$pubsubnet1,$pubsubnet2,securityGroupIds=$sgid)
-
-echo "############## Waiting for EKS cluster to get created ###################"
-echo "############## Paused for 15 mins ###############################"
-sleep 15m
-aws eks update-kubeconfig --region $region --name tap-demo-ekscluster
-
-rolenodearn=$(aws iam get-role --role-name tap-EKSNodeRole --query Role.Arn --output text)
-echo "######################### Creating Node Group ###########################"
-aws eks create-nodegroup --cluster-name tap-demo-ekscluster --nodegroup-name tap-demo-eksclusterng --node-role $rolenodearn --instance-types t2.2xlarge --scaling-config minSize=2,maxSize=3,desiredSize=3 --disk-size 40  --subnets $pubsubnet1
-
-echo "############## Waiting for Node groups to get created ###################"
-echo "############### Paused for 10 mins ################################"
-sleep 10m
-
+	read -p "Enter the Subscription ID: " subscription
+	         echo "#########################################"
+         echo "Resource group created with name tap-cluster-RG in region and subscription mentioned above"
+         echo "#########################################"
+	 az group create --name tap-cluster-RG --location $region --subscription $subscription
+         echo "#########################################"
+	 echo "Creating AKS cluster with 1 node and sku as Standard_D8S_v3, can be changed if required"
+         echo "#########################################"
+         az aks create --resource-group tap-cluster-RG --name tap-cluster-1 --subscription $subscription --node-count 2 --enable-addons monitoring --generate-ssh-keys --node-vm-size Standard_D8S_v3 -z 1 --enable-cluster-autoscaler --min-count 1 --max-count 2
+         echo "############### Created AKS Cluster ###############"
+	 echo "############### Set the context ###############"
+	 az account set --subscription $subscription
+	 az aks get-credentials --resource-group tap-cluster-RG --name tap-cluster-1
+	 echo "############## Verify the nodes #################"
+	 echo "#####################################################################################################"
+	 kubectl get nodes
+         echo "#####################################################################################################"
+	 	 echo "###### Create RG for Repo  ######"
+	 az group create --name tap-imagerepo-RG --location $region
+	 echo "####### Create container registry  ############"
+         echo "#####################################################################################################"
+	 az acr create --resource-group tap-imagerepo-RG --name tapdemoacr --sku Standard
+	 echo "####### Fetching acr Admin credentials ##########"
+	 az acr update -n tapdemoacr --admin-enabled true
+         acrusername=$(az acr credential show --name tapdemoacr --query "username" -o tsv)
+         acrloginserver=$(az acr show --name tapdemoacr --query loginServer -o tsv)
+         acrpassword=$(az acr credential show --name tapdemoacr --query passwords[0].value -o tsv)
+         if grep -q "/"  <<< "$acrpassword";
+             then
+	        acrpassword1=$(az acr credential show --name tapdemoacr --query passwords[1].value -o tsv)
+	        if grep -q "/"  <<< "$acrpassword1";
+	          then
+                	   echo "##########################################################################"
+		  	   echo "Update the password manually in tap-values file(repopassword): password is $acrpassword1 "
+                  	   echo "###########################################################################"
+	        else
+		   acrpassword=$acrpassword1
+	        fi
+         else
+   	          echo "Password Updated in tap values file"
+         fi
+	          echo "######### Preparing the tap-values file ##########"
+         sed -i -r "s/tanzunetusername/$tanzunetusername/g" "$HOME/tap-script/tap-values.yaml"
+         sed -i -r "s/tanzunetpassword/$tanzunetpassword/g" "$HOME/tap-script/tap-values.yaml"
+         sed -i -r "s/registryname/$acrloginserver/g" "$HOME/tap-script/tap-values.yaml"
+         sed -i -r "s/repousername/$acrusername/g" "$HOME/tap-script/tap-values.yaml"
+         sed -i -r "s/repopassword/$acrpassword/g" "$HOME/tap-script/tap-values.yaml"
+         sed -i -r "s/domainname/$domainname/g" "$HOME/tap-script/tap-values.yaml"
+         sed -i -r "s/githubtoken/$githubtoken/g" "$HOME/tap-script/tap-values.yaml"
+         echo "#####################################################################################################"
+         echo "########### Creating Secrets in tap-install namespace  #############"
+         kubectl create ns tap-install
+         kubectl create secret docker-registry registry-credentials --docker-server=$acrloginserver --docker-username=$acrusername --docker-password=$acrpassword -n tap-install
+         kubectl create secret docker-registry image-secret --docker-server=$acrloginserver --docker-username=$acrusername --docker-password=$acrpassword -n tap-install
 else
         read -p "Provide the EKS cluster : " eksclustername
         read -p "Provide the EKS cluster region: " eksclusterregion
         aws eks update-kubeconfig --region $eksclusterregion --name $eksclustername
 fi
-echo "################ Prepare Tap values file ##################"
-cat <<EOF > tap-values.yaml
-profile: full
-ceip_policy_disclosed: true # Installation fails if this is set to 'false'
-buildservice:
-  kp_default_repository: "$dockerhostname/build-service" # Replace the project id with yours. In my case eknath-se is the project ID
-  kp_default_repository_username: $dockerusername
-  kp_default_repository_password: $dockerpassword
-  tanzunet_username: "$tanzunetusername" # Provide the Tanzu network user name
-  tanzunet_password: "$tanzunetpassword" # Provide the Tanzu network password
-  descriptor_name: "tap-1.0.0-full"
-  enable_automatic_dependency_updates: true
-supply_chain: testing_scanning
-ootb_supply_chain_testing_scanning:
-  registry:
-    server: "$dockerhostname"
-    repository: "supply-chain" # Replace the project id with yours. In my case eknath-se is the project ID
-  gitops:
-    ssh_secret: ""
-  cluster_builder: default
-  service_account: default
-cnrs:
-  domain_name: $cnrsdomain
-
-learningcenter:
-  ingressDomain: "$domainname" # Provide a Domain Name
-
-metadata_store:
-  app_service_type: LoadBalancer # (optional) Defaults to LoadBalancer. Change to NodePort for distributions that don't support LoadBalancer
-grype:
-  namespace: "tap-install" # (optional) Defaults to default namespace.
-  targetImagePullSecret: "registry-credentials"
-contour:
-  envoy:
-    service:
-      type: LoadBalancer
-tap_gui:
-  service_type: LoadBalancer # NodePort for distributions that don't support LoadBalancer
-  app_config:
-    app:
-      baseUrl: http://tap-gui.$cnrsdomain
-    integrations:
-      github: # Other integrations available see NOTE below
-        - host: github.com
-          token: $githubtoken  # Create a token in github
-    catalog:
-      locations:
-        - type: url
-          target: https://github.com/Eknathreddy09/tanzu-java-web-app/blob/main/catalog/catalog-info.yaml
-    backend:
-      baseUrl: http://tap-gui.$cnrsdomain
-      cors:
-        origin: http://tap-gui.$cnrsdomain
-EOF
-echo "#####################################################################################################"
-echo "########### Creating Secrets in tap-install namespace  #############"
-kubectl create ns tap-install
-kubectl create secret docker-registry registry-credentials --docker-server=$dockerhostname --docker-username=$dockerusername --docker-password=$dockerpassword -n tap-install
-kubectl create secret docker-registry image-secret --docker-server=$dockerhostname --docker-username=$dockerusername --docker-password=$dockerpassword -n tap-install
 echo "############# Installing Pivnet ###########"
 wget https://github.com/pivotal-cf/pivnet-cli/releases/download/v3.0.1/pivnet-linux-amd64-3.0.1
 chmod +x pivnet-linux-amd64-3.0.1
