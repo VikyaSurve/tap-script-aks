@@ -9,9 +9,9 @@ read -p "Enter the Ingress Domain for CNRS: " cnrsdomain
 read -p "Enter the domain name for Learning center: " domainname
 read -p "Enter github token (to be collected from Githubportal): " githubtoken
 read -p "Do you want to use existing EKS cluster or create a new one? Type "N" for new, "E" for existing: " clusterconnect
-read -p "Enter ACR Login server Name: " dockerhostname
-read -p "Enter ACR Login server username: " dockerusername
-read -p "Enter ACR Login server password: " dockerpassword
+read -p "Do you want to use existing ACR repo or create a new one? Type "N" for new, "E" for existing: " azurerepo
+read -p "Enter the region: " region
+read -p "Enter the Subscription ID: " subscription
 echo "#################  Installing AZ cli #####################"
 curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 echo "#########################################"
@@ -27,27 +27,15 @@ echo "#############  Authenticate to AZ cli by following the screen Instructions
 echo "#####################################################################################################"
 az login
 echo "#########################################"
-if [ "$clusterconnect" == "N" ];
+echo "#########################################"
+if [ "$azurerepo" == "E" ];
 then
-	read -p "Enter the region: " region
-	read -p "Enter the Subscription ID: " subscription
-	         echo "#########################################"
-         echo "Resource group created with name tap-cluster-RG in region and subscription mentioned above"
-         echo "#########################################"
-	 az group create --name tap-cluster-RG --location $region --subscription $subscription
-         echo "#########################################"
-	 echo "Creating AKS cluster with 1 node and sku as Standard_D8S_v3, can be changed if required"
-         echo "#########################################"
-         az aks create --resource-group tap-cluster-RG --name tap-cluster-1 --subscription $subscription --node-count 2 --enable-addons monitoring --generate-ssh-keys --node-vm-size Standard_D8S_v3 -z 1 --enable-cluster-autoscaler --min-count 1 --max-count 2
-         echo "############### Created AKS Cluster ###############"
-	 echo "############### Set the context ###############"
-	 az account set --subscription $subscription
-	 az aks get-credentials --resource-group tap-cluster-RG --name tap-cluster-1
-	 echo "############## Verify the nodes #################"
-	 echo "#####################################################################################################"
-	 kubectl get nodes
-         echo "#####################################################################################################"
-	 	 echo "###### Create RG for Repo  ######"
+	read -p "Enter ACR Login server Name: " acrloginserver
+	read -p "Enter ACR Login server username: " acrusername
+	read -p "Enter ACR Login server password: " acrpassword
+
+else
+	 echo "###### Create RG for Repo  ######"
 	 az group create --name tap-imagerepo-RG --location $region
 	 echo "####### Create container registry  ############"
          echo "#####################################################################################################"
@@ -71,7 +59,28 @@ then
          else
    	          echo "Password Updated in tap values file"
          fi
-	          echo "######### Preparing the tap-values file ##########"
+
+fi
+if [ "$clusterconnect" == "N" ];
+then
+	 echo "#########################################"
+         echo "Resource group created with name tap-cluster-RG in region and subscription mentioned above"
+         echo "#########################################"
+	 az group create --name tap-cluster-RG --location $region --subscription $subscription
+         echo "#########################################"
+	 echo "Creating AKS cluster with 1 node and sku as Standard_D8S_v3, can be changed if required"
+         echo "#########################################"
+         az aks create --resource-group tap-cluster-RG --name tap-cluster-1 --subscription $subscription --node-count 2 --enable-addons monitoring --generate-ssh-keys --node-vm-size Standard_D8S_v3 -z 1 --enable-cluster-autoscaler --min-count 1 --max-count 2
+         echo "############### Created AKS Cluster ###############"
+	 echo "############### Set the context ###############"
+	 az account set --subscription $subscription
+	 az aks get-credentials --resource-group tap-cluster-RG --name tap-cluster-1
+	 echo "############## Verify the nodes #################"
+	 echo "#####################################################################################################"
+	 kubectl get nodes
+         echo "#####################################################################################################"
+
+	 echo "######### Preparing the tap-values file ##########"
          sed -i -r "s/tanzunetusername/$tanzunetusername/g" "$HOME/tap-script/tap-values.yaml"
          sed -i -r "s/tanzunetpassword/$tanzunetpassword/g" "$HOME/tap-script/tap-values.yaml"
          sed -i -r "s/registryname/$acrloginserver/g" "$HOME/tap-script/tap-values.yaml"
@@ -85,9 +94,10 @@ then
          kubectl create secret docker-registry registry-credentials --docker-server=$acrloginserver --docker-username=$acrusername --docker-password=$acrpassword -n tap-install
          kubectl create secret docker-registry image-secret --docker-server=$acrloginserver --docker-username=$acrusername --docker-password=$acrpassword -n tap-install
 else
-        read -p "Provide the EKS cluster : " eksclustername
-        read -p "Provide the EKS cluster region: " eksclusterregion
-        aws eks update-kubeconfig --region $eksclusterregion --name $eksclustername
+        az account set --subscription $subscription
+        read -p "Provide the AKS cluster resource group: " aksclusterresourcegroup
+        read -p "Provide the AKS cluster name: " aksclustername
+        az aks get-credentials --resource-group aksclusterresourcegroup --name aksclustername
 fi
 echo "############# Installing Pivnet ###########"
 wget https://github.com/pivotal-cf/pivnet-cli/releases/download/v3.0.1/pivnet-linux-amd64-3.0.1
@@ -131,6 +141,7 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io -y
 sudo usermod -aG docker $USER
 echo "####### Install tap-registry in all namespaces  ###########"
 sudo apt-get install jq -y
+sudo snap install yq
 echo "#####################################################################################################"
 echo "########### Rebooting #############"
 sudo reboot
