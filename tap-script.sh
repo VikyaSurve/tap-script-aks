@@ -1,5 +1,6 @@
 #!/bin/bash
-echo "############################ Keep Azure container registry credentials handy ######################"
+echo "############################ Keep these values handy: Pivnet token, Tanzu network username, Tanzu network password, Ingress Domain for CNRS, domain name for Learning center  ######################"
+echo "############################ github token, Subscription ID   ######################"
 echo "#####################################################################################################"
 echo "##### Pivnet Token: login to tanzu network, click on your username in top right corner of the page > select Edit Profile, scroll down and click on Request New Refresh Token ######"
 read -p "Enter the Pivnet token: " pivnettoken
@@ -10,7 +11,6 @@ read -p "Enter the domain name for Learning center: " domainname
 read -p "Enter github token (to be collected from Githubportal): " githubtoken
 read -p "Do you want to use existing EKS cluster or create a new one? Type "N" for new, "E" for existing: " clusterconnect
 read -p "Do you want to use existing ACR repo or create a new one? Type "N" for new, "E" for existing: " azurerepo
-read -p "Enter the region: " region
 read -p "Enter the Subscription ID: " subscription
 echo "#################  Installing AZ cli #####################"
 curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
@@ -30,13 +30,14 @@ echo "#########################################"
 echo "#########################################"
 if [ "$azurerepo" == "E" ];
 then
+        echo "###### Provide existing ACR details  ######"
 	read -p "Enter ACR Login server Name: " acrloginserver
 	read -p "Enter ACR Login server username: " acrusername
 	read -p "Enter ACR Login server password: " acrpassword
-
 else
+         read -p "Enter the region to create ACR  : " regionacr
 	 echo "###### Create RG for Repo  ######"
-	 az group create --name tap-imagerepo-RG --location $region
+	 az group create --name tap-imagerepo-RG --location $regionacr
 	 echo "####### Create container registry  ############"
          echo "#####################################################################################################"
 	 az acr create --resource-group tap-imagerepo-RG --name tapdemoacr --sku Standard
@@ -63,10 +64,11 @@ else
 fi
 if [ "$clusterconnect" == "N" ];
 then
+         read -p "Enter the region to deploy EKS Cluster: " regioneks
 	 echo "#########################################"
          echo "Resource group created with name tap-cluster-RG in region and subscription mentioned above"
          echo "#########################################"
-	 az group create --name tap-cluster-RG --location $region --subscription $subscription
+	 az group create --name tap-cluster-RG --location $regioneks --subscription $subscription
          echo "#########################################"
 	 echo "Creating AKS cluster with 1 node and sku as Standard_D8S_v3, can be changed if required"
          echo "#########################################"
@@ -79,7 +81,12 @@ then
 	 echo "#####################################################################################################"
 	 kubectl get nodes
          echo "#####################################################################################################"
-
+else
+        az account set --subscription $subscription
+        read -p "Provide the AKS cluster resource group: " aksclusterresourcegroup
+        read -p "Provide the AKS cluster name: " aksclustername
+        az aks get-credentials --resource-group aksclusterresourcegroup --name aksclustername
+fi
 	 echo "######### Preparing the tap-values file ##########"
          sed -i -r "s/tanzunetusername/$tanzunetusername/g" "$HOME/tap-script-aks/tap-values.yaml"
          sed -i -r "s/tanzunetpassword/$tanzunetpassword/g" "$HOME/tap-script-aks/tap-values.yaml"
@@ -93,17 +100,10 @@ then
          echo "########### Creating Secrets in tap-install namespace  #############"
          kubectl create ns tap-install
          kubectl create secret docker-registry registry-credentials --docker-server=$acrloginserver --docker-username=$acrusername --docker-password=$acrpassword -n tap-install
-else
-        az account set --subscription $subscription
-        read -p "Provide the AKS cluster resource group: " aksclusterresourcegroup
-        read -p "Provide the AKS cluster name: " aksclustername
-        az aks get-credentials --resource-group aksclusterresourcegroup --name aksclustername
-fi
 echo "############# Installing Pivnet ###########"
 wget https://github.com/pivotal-cf/pivnet-cli/releases/download/v3.0.1/pivnet-linux-amd64-3.0.1
 chmod +x pivnet-linux-amd64-3.0.1
 sudo mv pivnet-linux-amd64-3.0.1 /usr/local/bin/pivnet
-
 echo "########## Installing Tanzu CLI  #############"
 pivnet login --api-token=${pivnettoken}
 pivnet download-product-files --product-slug='tanzu-cluster-essentials' --release-version='1.1.0' --product-file-id=1191987
