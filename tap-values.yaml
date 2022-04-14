@@ -20,7 +20,7 @@ ootb_supply_chain_testing_scanning:
 cnrs:
   domain_name: cnrsdomain
 learningcenter:
-  ingressDomain: "$domainname"
+  ingressDomain: "domainname"
 
 metadata_store:
   app_service_type: LoadBalancer # (optional) Defaults to LoadBalancer. Change to NodePort for distributions that don't support LoadBalancer
