@@ -81,18 +81,18 @@ then
          echo "#####################################################################################################"
 
 	 echo "######### Preparing the tap-values file ##########"
-         sed -i -r "s/tanzunetusername/$tanzunetusername/g" "$HOME/tap-script/tap-values.yaml"
-         sed -i -r "s/tanzunetpassword/$tanzunetpassword/g" "$HOME/tap-script/tap-values.yaml"
-         sed -i -r "s/registryname/$acrloginserver/g" "$HOME/tap-script/tap-values.yaml"
-         sed -i -r "s/repousername/$acrusername/g" "$HOME/tap-script/tap-values.yaml"
-         sed -i -r "s/repopassword/$acrpassword/g" "$HOME/tap-script/tap-values.yaml"
-         sed -i -r "s/domainname/$domainname/g" "$HOME/tap-script/tap-values.yaml"
-         sed -i -r "s/githubtoken/$githubtoken/g" "$HOME/tap-script/tap-values.yaml"
+         sed -i -r "s/tanzunetusername/$tanzunetusername/g" "$HOME/tap-script-aks/tap-values.yaml"
+         sed -i -r "s/tanzunetpassword/$tanzunetpassword/g" "$HOME/tap-script-aks/tap-values.yaml"
+         sed -i -r "s/registryname/$acrloginserver/g" "$HOME/tap-script-aks/tap-values.yaml"
+         sed -i -r "s/repousername/$acrusername/g" "$HOME/tap-script-aks/tap-values.yaml"
+         sed -i -r "s/repopassword/$acrpassword/g" "$HOME/tap-script-aks/tap-values.yaml"
+         sed -i -r "s/domainname/$domainname/g" "$HOME/tap-script-aks/tap-values.yaml"
+         sed -i -r "s/githubtoken/$githubtoken/g" "$HOME/tap-script-aks/tap-values.yaml"
+         sed -i -r "s/cnrsdomain/$cnrsdomain/g" "$HOME/tap-script-aks/tap-values.yaml"
          echo "#####################################################################################################"
          echo "########### Creating Secrets in tap-install namespace  #############"
          kubectl create ns tap-install
          kubectl create secret docker-registry registry-credentials --docker-server=$acrloginserver --docker-username=$acrusername --docker-password=$acrpassword -n tap-install
-         kubectl create secret docker-registry image-secret --docker-server=$acrloginserver --docker-username=$acrusername --docker-password=$acrpassword -n tap-install
 else
         az account set --subscription $subscription
         read -p "Provide the AKS cluster resource group: " aksclusterresourcegroup
@@ -106,10 +106,10 @@ sudo mv pivnet-linux-amd64-3.0.1 /usr/local/bin/pivnet
 
 echo "########## Installing Tanzu CLI  #############"
 pivnet login --api-token=${pivnettoken}
-pivnet download-product-files --product-slug='tanzu-cluster-essentials' --release-version='1.0.0' --product-file-id=1105818
+pivnet download-product-files --product-slug='tanzu-cluster-essentials' --release-version='1.1.0' --product-file-id=1191987
 mkdir $HOME/tanzu-cluster-essentials
-tar -xvf tanzu-cluster-essentials-linux-amd64-1.0.0.tgz -C $HOME/tanzu-cluster-essentials
-export INSTALL_BUNDLE=registry.tanzu.vmware.com/tanzu-cluster-essentials/cluster-essentials-bundle@sha256:82dfaf70656b54dcba0d4def85ccae1578ff27054e7533d08320244af7fb0343
+tar -xvf tanzu-cluster-essentials-linux-amd64-1.1.0.tgz -C $HOME/tanzu-cluster-essentials
+export INSTALL_BUNDLE=registry.tanzu.vmware.com/tanzu-cluster-essentials/cluster-essentials-bundle@sha256:ab0a3539da241a6ea59c75c0743e9058511d7c56312ea3906178ec0f3491f51d
 export INSTALL_REGISTRY_HOSTNAME=registry.tanzu.vmware.com
 export INSTALL_REGISTRY_USERNAME=$tanzunetusername
 export INSTALL_REGISTRY_PASSWORD=$tanzunetpassword
@@ -122,12 +122,12 @@ echo "######## Installing Imgpkg ###########"
 sudo cp $HOME/tanzu-cluster-essentials/imgpkg /usr/local/bin/imgpkg
 imgpkg version
 echo "#################################"
-pivnet download-product-files --product-slug='tanzu-application-platform' --release-version='1.0.2' --product-file-id=1156168
+pivnet download-product-files --product-slug='tanzu-application-platform' --release-version='1.1.0' --product-file-id=1190781
 mkdir $HOME/tanzu
 tar -xvf tanzu-framework-linux-amd64.tar -C $HOME/tanzu
 export TANZU_CLI_NO_INIT=true
 cd $HOME/tanzu
-sudo install cli/core/v0.11.1/tanzu-core-linux_amd64 /usr/local/bin/tanzu
+sudo install cli/core/v0.11.2/tanzu-core-linux_amd64 /usr/local/bin/tanzu
 tanzu version
 tanzu plugin install --local cli all
 tanzu plugin list
