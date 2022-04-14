@@ -1,5 +1,8 @@
 #!/bin/bash
-echo "############################ Keep these values handy: Pivnet token, Tanzu network username, Tanzu network password, Ingress Domain for CNRS, domain name for Learning center  ######################"
+echo "############################ Keep these values handy:   ######################"
+echo "############################ Pivnet token, Tanzu network username  ######################"
+echo "############################ Tanzu network password, Ingress Domain for CNRS   ######################"
+echo "############################ domain name for Learning center, region to deploy AKS Cluster and ACR repo  ######################"
 echo "############################ github token, Subscription ID   ######################"
 echo "#####################################################################################################"
 echo "##### Pivnet Token: login to tanzu network, click on your username in top right corner of the page > select Edit Profile, scroll down and click on Request New Refresh Token ######"
