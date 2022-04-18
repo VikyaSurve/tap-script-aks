@@ -3,8 +3,11 @@ Unofficial TAP 1.0 install script, this is written out of my personal Interest.
 ## tap-script-aks
 
 Deploy an ubuntu machine with minimum config
+
 Git clone https://github.com/Eknathreddy09/tap-script-aks
+
 Navigate to directory > $HOME/tap-script-aks
+
 Keep these values Handy: 
 
     1. Pivnet token
