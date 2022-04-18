@@ -1,4 +1,4 @@
-Unofficial TAP 1.0 install script, this is written out of my personal Interest.
+Unofficial TAP 1.1.0 install script, this is written out of my personal Interest.
 
 ## tap-script-aks
 
