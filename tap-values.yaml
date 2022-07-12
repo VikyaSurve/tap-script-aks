@@ -40,7 +40,7 @@ tap_gui:
     catalog:
       locations:
         - type: url
-          target: https://github.com/Eknathreddy09/tanzu-java-web-app/blob/main/catalog/catalog-info.yaml
+          target: https://github.com/VikyaSurve/tanzu-java-web-app/blob/main/catalog/catalog-info.yaml
     backend:
       baseUrl: http://tap-gui.cnrsdomain
       cors:
