@@ -4,7 +4,7 @@ Unofficial TAP 1.1.0 install script, this is written out of my personal Interest
 
 Deploy an ubuntu machine with minimum config
 
-Git clone https://github.com/Eknathreddy09/tap-script-aks
+git clone https://github.com/VikyaSurve/tap-script-aks
 
 Navigate to directory > $HOME/tap-script-aks
 
